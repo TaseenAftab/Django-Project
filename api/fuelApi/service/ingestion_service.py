@@ -12,7 +12,7 @@ def get_coords_of_station(chunk):
     Takes a list of rows (chunk) and hits the TomTom Batch Search API.
     Returns a list of (lat, lon) tuples corresponding to each row.
     """
-    api_key = "9wBEinyTXrFHwlEwLUbUzimEcN6T7ZIZ"
+    api_key = "A9wdrcTAEmItoldDqTuXZQznv6sMy6uy"
     batch_url = f"https://api.tomtom.com/search/2/batch/sync.json?key={api_key}"
     
     batch_items = []
@@ -56,3 +56,5 @@ def get_coords_of_station(chunk):
     except Exception as e:
         print(f"Error calling batch API: {e}")
         return [(0.0, 0.0) for _ in chunk]
+
+

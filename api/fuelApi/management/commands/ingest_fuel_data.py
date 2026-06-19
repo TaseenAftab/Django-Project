@@ -8,18 +8,20 @@ class Command(BaseCommand):
     def handle(self, *args, **kwargs):
         self.stdout.write("Starting fuel data ingestion...")
 
-        with open('api/fuelApi/constants/fuel-prices.csv', 'r', encoding='utf-8') as file:
+        with open('api/fuelApi/constants/fuel-prices-updated.csv', 'r', encoding='utf-8') as file:
             reader = csv.DictReader(file)
             for row in reader:
                 
                 FuelPrice.objects.get_or_create(
                     opis_truckstop_id=row['OPIS Truckstop ID'],
-                    truckstop_name=row['Truckstop Name'],
-                    address=row['Address'],
-                    city=row['City'],
-                    state=row['State'],
+                    truckstop_name=row['Truckstop Name'].strip(),
+                    address=row['Address'].strip(),
+                    city=row['City'].strip(),
+                    state=row['State'].strip(),
                     rack_id=row['Rack ID'],
-                    retail_price=row['Retail Price']
+                    retail_price=row['Retail Price'],
+                    lat=row['Latitude'],
+                    long=row['Longitude']
                 )
 
         self.stdout.write(self.style.SUCCESS('Successfully ingested fuel data'))

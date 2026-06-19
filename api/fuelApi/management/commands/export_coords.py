@@ -1,16 +1,14 @@
 import csv
 import time
-import requests
-import urllib.parse
 from django.core.management.base import BaseCommand
 from api.fuelApi.service.ingestion_service import get_coords_of_station
 
 class Command(BaseCommand):
-    help = "Generates a CSV with statecode, latitude, and longitude using TomTom Batch Search API."
+    help = "Generates an updated CSV with all original data plus latitude and longitude using TomTom Batch Search API."
 
     def handle(self, *args, **kwargs):
         input_file = 'api/fuelApi/constants/fuel-prices.csv'
-        output_file = 'api/fuelApi/constants/station-locations.csv'
+        output_file = 'api/fuelApi/constants/fuel-prices-updated.csv'
         failed_file = 'api/fuelApi/constants/failed-stations.csv'
         
         self.stdout.write(f"Reading from {input_file} and writing to {output_file}...")
@@ -20,12 +18,17 @@ class Command(BaseCommand):
                  open(output_file, 'a', newline='', encoding='utf-8') as outfile, \
                  open(failed_file, 'a', newline='', encoding='utf-8') as failfile:
                  
-                reader = csv.DictReader(infile)  
-                writer = csv.writer(outfile)
+                reader = csv.DictReader(infile)
+                
+                out_fieldnames = reader.fieldnames + ['Latitude', 'Longitude']
+                writer = csv.DictWriter(outfile, fieldnames=out_fieldnames)
+                # No writeheader() because we are appending
+                
                 fail_writer = csv.DictWriter(failfile, fieldnames=reader.fieldnames)
+                # No writeheader() because we are appending
                 
                 all_rows = list(reader)
-                rows = all_rows[6700:] 
+                rows = all_rows[6001:] # Skip the first 2100 rows
                 total_rows = len(rows)
                 chunk_size = 100
                 count = 0
@@ -42,7 +45,12 @@ class Command(BaseCommand):
                     coords_list = get_coords_of_station(chunk)
                     
                     for row, (lat, lon) in zip(chunk, coords_list):
-                        writer.writerow([row['State'], lat, lon])
+                        # Create a copy of the row to add the lat/lon
+                        row_out = dict(row)
+                        row_out['Latitude'] = lat
+                        row_out['Longitude'] = lon
+                        
+                        writer.writerow(row_out)
                         
                         if lat == 0.0 and lon == 0.0:
                             fail_writer.writerow(row)
@@ -53,7 +61,8 @@ class Command(BaseCommand):
                     failfile.flush()
                     
                     time.sleep(1)
-                        
-                self.stdout.write(self.style.SUCCESS(f"\nDone! Successfully processed {count} locations in batches."))
+                    
+            self.stdout.write(self.style.SUCCESS(f"Successfully processed {count} records!"))
+            
         except Exception as e:
-            self.stdout.write(self.style.ERROR(f"Critical error: {e}"))
+            self.stdout.write(self.style.ERROR(f"Error reading or writing file: {e}"))
