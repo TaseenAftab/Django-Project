@@ -2,6 +2,7 @@ import requests
 from typing import Literal
 import os
 import dotenv
+import math
 
 dotenv.load_dotenv()
 
@@ -40,3 +41,15 @@ def base_request(req_type: RequestType, profile: str = "driving-car", *args , **
         if e.response is not None:
             print(f"Response: {e.response.text}")
         return None
+
+def haversine_distance(coord1: list[float], coord2: list[float]) -> float:
+    R = 3958.8 # Earth radius in miles
+    lat1, lon1 = math.radians(coord1[1]), math.radians(coord1[0])
+    lat2, lon2 = math.radians(coord2[1]), math.radians(coord2[0])
+    
+    dlat = lat2 - lat1
+    dlon = lon2 - lon1
+    
+    a = math.sin(dlat / 2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2)**2
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    return R * c
