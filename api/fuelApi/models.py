@@ -15,3 +15,11 @@ class FuelPrice(models.Model):
     def __str__(self):
         return f"{self.truckstop_name} ({self.city}, {self.state}) - ${self.retail_price}"
 
+class StateCoords(models.Model):
+    name = models.CharField(max_length=100)
+    code = models.CharField(max_length=2)
+    lat = models.DecimalField(max_digits=12, decimal_places=8, help_text="Latitude")
+    long = models.DecimalField(max_digits=12, decimal_places=8, help_text="Longitude")
+
+    def __str__(self):
+        return f"{self.name} ({self.code}) - {self.lat}, {self.long}"

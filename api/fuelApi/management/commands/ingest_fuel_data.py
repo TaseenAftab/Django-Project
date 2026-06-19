@@ -1,4 +1,4 @@
-from api.fuelApi.models import FuelPrice
+from api.fuelApi.models import FuelPrice, StateCoords
 from django.core.management.base import BaseCommand
 import csv
 
@@ -25,4 +25,16 @@ class Command(BaseCommand):
                 )
 
         self.stdout.write(self.style.SUCCESS('Successfully ingested fuel data'))
+
+        with open('api/fuelApi/constants/state-coords.csv', 'r', encoding='utf-8') as file:
+            reader = csv.DictReader(file)
+            for row in reader:
+                StateCoords.objects.get_or_create(
+                    name=row['name'].strip(),
+                    code=row['code'].strip(),
+                    lat=row['latitude'],
+                    long=row['longitude']
+                )
+
+        self.stdout.write(self.style.SUCCESS('Successfully ingested state coordinates'))
         

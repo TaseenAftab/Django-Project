@@ -28,8 +28,7 @@ class Command(BaseCommand):
                 # No writeheader() because we are appending
                 
                 all_rows = list(reader)
-                rows = all_rows[6001:] # Skip the first 2100 rows
-                total_rows = len(rows)
+                total_rows = len(all_rows)
                 chunk_size = 100
                 count = 0
                 
@@ -39,7 +38,7 @@ class Command(BaseCommand):
                     for i in range(0, len(data), size):
                         yield data[i:i + size]
                 
-                for chunk in get_chunks(rows, chunk_size):
+                for chunk in get_chunks(all_rows, chunk_size):
                     self.stdout.write(f"Sending next batch...")
                     
                     coords_list = get_coords_of_station(chunk)

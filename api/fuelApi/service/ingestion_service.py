@@ -1,8 +1,6 @@
 import time
 from api.fuelApi.constants.state_codes import STATE_CODES
 import requests
-
-
 import urllib.parse
 import requests
 from api.fuelApi.constants.state_codes import STATE_CODES
@@ -57,4 +55,31 @@ def get_coords_of_station(chunk):
         print(f"Error calling batch API: {e}")
         return [(0.0, 0.0) for _ in chunk]
 
+def get_coords_of_state(state_code):
 
+    full_state_name = STATE_CODES.get(state_code.upper(), state_code)
+    query = urllib.parse.quote(f"{full_state_name}, USA")
+    url = f'https://nominatim.openstreetmap.org/search?q={query}&format=json&polygon_geojson=1'
+    
+    headers = {
+        'User-Agent': 'FuelTrackerApp/1.0'
+    }
+    
+    try:
+        response = requests.get(url, headers=headers)
+        if response.status_code == 200:
+            data = response.json()
+            if data:
+                return data[0]
+
+            else:
+                print(f"No results found for state: {full_state_name}")
+                return None
+
+            time.sleep(1)
+        else:
+            print(f"Nominatim API failed with status code: {response.status_code}")
+            return None
+    except Exception as e:
+        print(f"Error fetching coordinates for state {state_code}: {e}")
+        return None
