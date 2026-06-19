@@ -4,35 +4,55 @@ import requests
 
 
 import urllib.parse
+import requests
+from api.fuelApi.constants.state_codes import STATE_CODES
 
-def get_coords_of_station(name: str, address: str, city: str, state_code: str):
-    clean_query = address.replace("&", "and")
-    full_state_name = STATE_CODES.get(state_code.upper(), state_code)
+def get_coords_of_station(chunk):
+    """
+    Takes a list of rows (chunk) and hits the TomTom Batch Search API.
+    Returns a list of (lat, lon) tuples corresponding to each row.
+    """
+    api_key = "9wBEinyTXrFHwlEwLUbUzimEcN6T7ZIZ"
+    batch_url = f"https://api.tomtom.com/search/2/batch/sync.json?key={api_key}"
     
-    # Use the name, address, city, and state. 
-    final_query = f"{name}, {clean_query}, {city}, {full_state_name}, USA"
+    batch_items = []
     
-    encoded_query = urllib.parse.quote(final_query)
+    for row in chunk:
+        name = row['Truckstop Name'].replace("/", " ").split('#')[0].strip()
+        address = row['Address'].replace("&", "and").replace("/", " ").split('#')[0].strip()
+        city = row['City']
+        state_code = row['State']
+        full_state_name = STATE_CODES.get(state_code.upper(), state_code)
+        
+        final_query = f"{name.strip()}, {address.strip()}, {city.strip()}, {full_state_name.strip()}, USA"
+        encoded_query = urllib.parse.quote(final_query)
+        
+        query_url = f"/search/{encoded_query}.json?limit=1"
+        batch_items.append({"query": query_url})
+        
+    payload = {"batchItems": batch_items}
     
-    api_key = "aSFl8tNk0D7yW3FJuoc0SRXCm89qlwXm"
-    
-    # Change endpoint from /geocode/ to /search/ (Fuzzy Search)
-    url = f"https://api.tomtom.com/search/2/search/{encoded_query}.json"
-    
-    params = {
-        'key': api_key,
-        'limit': 1
-    }
-    
-    response = requests.get(url, params=params)
-    data = response.json()
-    
-    # TomTom allows up to 5 requests per second, so we can lower the sleep
-    time.sleep(1)
-    
-    if 'results' in data and len(data['results']) > 0:
-        lat = data['results'][0]['position']['lat']
-        lon = data['results'][0]['position']['lon']
-        return [lat, lon]
-    
-    return [0.0, 0.0]
+    try:
+        response = requests.post(batch_url, json=payload)
+        coords = []
+        
+        if response.status_code == 200:
+            data = response.json()
+            responses = data.get('batchItems', [])
+            
+            for item in responses:
+                lat, lon = 0.0, 0.0
+                if item.get('statusCode') == 200:
+                    results = item.get('response', {}).get('results', [])
+                    if results:
+                        pos = results[0]['position']
+                        lat, lon = pos['lat'], pos['lon']
+                coords.append((lat, lon))
+        else:
+            coords = [(0.0, 0.0) for _ in chunk]
+            print(f"Batch failed: {response.status_code}")
+            
+        return coords
+    except Exception as e:
+        print(f"Error calling batch API: {e}")
+        return [(0.0, 0.0) for _ in chunk]
