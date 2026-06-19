@@ -10,6 +10,10 @@ def fuel_price_list(request):
     return Response(serializer.data)
 
 @api_view(['GET'])
+def path(request):
+    pass
+
+@api_view(['GET'])
 def state_coords_list(request):
     state_coords = StateCoords.objects.all()
     serializer = StateCoordsSerializer(state_coords, many=True)

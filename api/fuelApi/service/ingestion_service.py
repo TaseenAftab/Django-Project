@@ -78,7 +78,7 @@ def get_coords_of_state(state_code):
 
             time.sleep(1)
         else:
-            print(f"Nominatim API failed with status code: {response.status_code}")
+            print(f"Failed with status code: {response.status_code}")
             return None
     except Exception as e:
         print(f"Error fetching coordinates for state {state_code}: {e}")
