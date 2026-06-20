@@ -1,7 +1,7 @@
 from api.fuelApi.types.types import Coordinates, Path, Car
 from api.fuelApi.utils.path_utils import base_request, get_coords_by_distance
-from shapely.geometry import Point, LineString, shape
-from math import ceil
+from shapely.geometry import shape
+from api.fuelApi.services.location_service import station_locator
 
 
 
@@ -14,7 +14,6 @@ def find_path(start_coords: Coordinates, end_coords: Coordinates) -> Path:
     
     distance = data['features'][0]['properties']['summary']['distance']*0.000621371
     route_geometry = shape(data['features'][0]['geometry'])
-    route_length = route_geometry.length * 0.000621371
 
     car = Car(start_coords, distance)  
     refills_made = 0
@@ -32,7 +31,10 @@ def find_path(start_coords: Coordinates, end_coords: Coordinates) -> Path:
         else:
             car.distance_covered += distance_can_cover
             car.fuel_in_tank -= distance_can_cover / car.consumption
-            current_coords = get_coords_by_distance(car.distance_covered, route_length, route_geometry)
+            current_coords = get_coords_by_distance(car.distance_covered, car.distance_to_cover, route_geometry)
+            station_coords = station_locator.find_nearest_station(Coordinates(*current_coords))
+
+            print(station_coords)
 
             print(f'current_coords: {current_coords}')
             print(f"Drove {distance_can_cover:.2f} miles. Total covered: {car.distance_covered:.2f}/{car.distance_to_cover:.2f} miles. Hit safe reserve ({car.fuel_in_tank:.2f} gal)! Refilling tank to 50 gal...")

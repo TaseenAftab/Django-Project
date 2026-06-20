@@ -1,5 +1,13 @@
+import os
+import django
+
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'main.settings')
+django.setup()
+
+from api.fuelApi.services.location_service import station_locator
+station_locator.load_from_database()
+
 from api.fuelApi.services.path_service import find_path
-from api.fuelApi.utils.path_utils import base_request
 from api.fuelApi.types.types import Coordinates
 
 

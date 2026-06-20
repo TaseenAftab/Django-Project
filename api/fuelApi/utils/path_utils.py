@@ -7,7 +7,7 @@ import shapely.geometry
 
 dotenv.load_dotenv()
 
-RequestType = Literal['isochrone', 'direction']
+RequestType = Literal['matrix', 'direction']
 
 API_KEY = os.getenv("ORS_API_KEY")
 BASE_URL = "https://api.openrouteservice.org/v2"
@@ -16,8 +16,8 @@ def base_request(req_type: RequestType, profile: str = "driving-car", *args , **
     """
     Base Request for OpenRouteService
     """
-    if req_type == 'isochrone':
-        endpoint = f"{BASE_URL}/isochrones/{profile}"
+    if req_type == 'matrix':
+        endpoint = f"{BASE_URL}/matrix/{profile}"
     elif req_type == 'direction':
         endpoint = f"{BASE_URL}/directions/{profile}/geojson"
     else:

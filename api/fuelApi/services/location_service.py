@@ -35,7 +35,21 @@ class NearestStationService:
         unique_candidates = []
         seen_coordinates = set()
 
-        for i, index in enumerate(indices):
-            pass
+        for i, tree_index in enumerate(indices):
+            coord_tuple = tuple(self.coordinates[tree_index])
 
+            if coord_tuple not in seen_coordinates:
+                seen_coordinates.add(coord_tuple)
+            
+                unique_candidates.append({
+                    "database_id": self.station_ids[tree_index],
+                    "coordinates": self.coordinates[tree_index],
+                    "distance_degrees": distances[i]
+                })
+
+            if len(unique_candidates) == 1:
+                break
+        
+        return unique_candidates
+    
 station_locator = NearestStationService()
