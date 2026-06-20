@@ -43,14 +43,15 @@ def base_request(req_type: RequestType, profile: str = "driving-car", *args , **
         if e.response is not None:
             try:
                 error_data = e.response.json()
-                if 'error' in error_data and 'message' in error_data['error']:
-                    err_msg = error_data['error']['message']
-                    raise ValueError(err_msg)
+            except Exception:
+                error_data = {}
                 
-                if error_data.get('error', {}).get('code') == 2010:
-                    raise ValueError("The road is finished or point is too far from a valid road.")
-            except (ValueError, TypeError):
-                pass
+            if 'error' in error_data and 'message' in error_data['error']:
+                err_msg = error_data['error']['message']
+                raise ValueError(err_msg)
+            
+            if error_data.get('error', {}).get('code') == 2010:
+                raise ValueError("The road is finished or point is too far from a valid road.")
         
         raise ValueError("Failed to connect to the routing service.")
 
