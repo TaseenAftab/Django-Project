@@ -33,14 +33,17 @@ def find_path(start_coords: Coordinates, end_coords: Coordinates) -> Path:
         
     valid_stations.sort(key=lambda x: x['proj_dist'])
     
-    nodes = [{'id': 'start', 'proj_dist': 0.0}] + valid_stations + [{'id': 'end', 'proj_dist': distance}]
+    # Bulk fetch all valid station retail prices to calculate costs dynamically
+    db_ids = [s['database_id'] for s in valid_stations]
+    prices_dict = {fp.id: float(fp.retail_price) for fp in FuelPrice.objects.filter(id__in=db_ids)}
+    
+    for station in valid_stations:
+        station['retail_price'] = prices_dict.get(station['database_id'], 5.0) # default to $5 if missing
+        
+    nodes = [{'id': 'start', 'proj_dist': 0.0, 'retail_price': 0.0}] + valid_stations + [{'id': 'end', 'proj_dist': distance, 'retail_price': 0.0}]
     
     abs_max_range = car.fuel_in_tank * car.consumption
     safe_max_range = (car.fuel_in_tank - car.safe_fuel_reserve) * car.consumption 
-    
-    min_tanks = math.ceil(distance / safe_max_range)
-    total_tanks = min_tanks + 1
-    ideal_spacing = distance / total_tanks
     
     n = len(nodes)
     min_cost = {0: 0.0}
@@ -54,7 +57,6 @@ def find_path(start_coords: Coordinates, end_coords: Coordinates) -> Path:
             break
             
         if cost > min_cost.get(u, float('inf')):
-
             continue
             
         for v in range(u + 1, n):
@@ -66,8 +68,14 @@ def find_path(start_coords: Coordinates, end_coords: Coordinates) -> Path:
             if dist_uv <= 0:
                 continue
                 
-            edge_cost = abs(dist_uv - ideal_spacing) ** 2
+            # Cost is exactly the dollar amount spent to refill the fuel used on this leg
+            # Fuel used = dist_uv / 10 mpg. We buy that gas at the retail price of station v.
+            if v == n - 1:
+                edge_cost = 0.0 # We don't buy gas at the final destination
+            else:
+                edge_cost = (dist_uv / float(car.consumption)) * nodes[v]['retail_price']
             
+            # If we dip into the safe reserve, we add a massive penalty
             if dist_uv > safe_max_range:
                 edge_cost += 1000000 + (dist_uv - safe_max_range) ** 2
                 
@@ -95,7 +103,10 @@ def find_path(start_coords: Coordinates, end_coords: Coordinates) -> Path:
     car.distance_covered = 0.0
     
     print(f"Total distance: {distance:.2f} miles")
-    print(f"Ideal spacing calculated: {ideal_spacing:.2f} miles ({total_tanks} legs)")
+    
+    # Store the massive original geometry so views.py can slice it without API calls
+    path.route_geometry = route_geometry
+    path.total_distance = distance
     
     for i in range(1, len(path_indices)):
         u = path_indices[i-1]
@@ -112,7 +123,6 @@ def find_path(start_coords: Coordinates, end_coords: Coordinates) -> Path:
             station = nodes[v]
             stat_lon, stat_lat = station['coordinates']
             
-            from api.fuelApi.models import FuelPrice
             db_station = FuelPrice.objects.get(id=station.get('database_id'))
             retail_price = float(db_station.retail_price)
             
@@ -122,7 +132,8 @@ def find_path(start_coords: Coordinates, end_coords: Coordinates) -> Path:
                 "city": db_station.city,
                 "state": db_station.state,
                 "retail_price": retail_price,
-                "coordinates": [float(stat_lon), float(stat_lat)]
+                "coordinates": [float(stat_lon), float(stat_lat)],
+                "proj_dist": station['proj_dist']
             })
             
             refill_amount = 50.0 - current_fuel

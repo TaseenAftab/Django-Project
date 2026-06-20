@@ -2,6 +2,10 @@ from rest_framework.response import Response
 from rest_framework.decorators import api_view
 from api.fuelApi.models import FuelPrice, StateCoords
 from api.fuelApi.serializers import FuelPriceSerializer, StateCoordsSerializer
+from api.fuelApi.serializers import FuelPriceSerializer, StateCoordsSerializer, RouteRequestSerializer
+from api.fuelApi.types.types import Coordinates
+from api.fuelApi.services.path_service import find_path
+from api.fuelApi.services.location_service import station_locator
 
 @api_view(['GET'])
 def fuel_price_list(request):
@@ -9,11 +13,7 @@ def fuel_price_list(request):
     serializer = FuelPriceSerializer(fuel_data, many=True)
     return Response(serializer.data)
 
-from api.fuelApi.serializers import FuelPriceSerializer, StateCoordsSerializer, RouteRequestSerializer
-from api.fuelApi.types.types import Coordinates
-from api.fuelApi.services.path_service import find_path
-from api.fuelApi.utils.path_utils import base_request
-from api.fuelApi.services.location_service import station_locator
+
 
 @api_view(['POST'])
 def route(request):
@@ -28,25 +28,43 @@ def route(request):
         if not station_locator.is_ready:
             station_locator.load_from_database()
             
-        path_obj = find_path(start_coords, end_coords)
-        all_coords = path_obj.get_path()
-        
+        try:
+            path_obj = find_path(start_coords, end_coords)
+        except ValueError as e:
+            return Response({"routing_error": str(e)}, status=400)
+            
         feature_collection = {
             "type": "FeatureCollection",
             "features": []
         }
         
-        for i in range(len(all_coords) - 1):
-            segment_start = all_coords[i]
-            segment_end = all_coords[i+1]
+        # Build the exact mathematical mile markers where we need to slice the geometry
+        slice_markers = [0.0]
+        slice_markers.extend([station['proj_dist'] for station in path_obj.stations_info])
+        slice_markers.append(path_obj.total_distance)
+        
+        route_geom = path_obj.route_geometry
+        total_dist = path_obj.total_distance
+        
+        from shapely.ops import substring
+        from shapely.geometry import mapping
+        
+        # Natively slice the single master geometry into segments! NO MORE API CALLS!
+        for i in range(len(slice_markers) - 1):
+            start_norm = slice_markers[i] / total_dist
+            end_norm = slice_markers[i+1] / total_dist
             
-            segment_data = base_request('direction', coordinates=[segment_start, segment_end], radiuses=[-1, -1])
+            segment_geom = substring(route_geom, start_norm, end_norm, normalized=True)
             
-            if segment_data and "features" in segment_data and len(segment_data["features"]) > 0:
-                route_feature = segment_data["features"][0]
-
-                route_feature["properties"]["segment_index"] = i + 1
-                feature_collection["features"].append(route_feature)
+            route_feature = {
+                "type": "Feature",
+                "properties": {
+                    "segment_index": i + 1,
+                    "length_miles": round(slice_markers[i+1] - slice_markers[i], 2)
+                },
+                "geometry": mapping(segment_geom)
+            }
+            feature_collection["features"].append(route_feature)
                 
         # Restructure the final JSON response based on requirements
         response_data = {
