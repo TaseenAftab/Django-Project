@@ -14,18 +14,23 @@ class Coordinates:
         self.long = long 
 
     def get_coords(self) -> list[float]:
-        return [self.long, self.lat]
+        return [float(self.long), float(self.lat)]
 
 class Path:
-    def __init__(self, start_coords: Coordinates, end_coords: Coordinates, station_coords: Optional[Coordinates] = None):
+    def __init__(self, start_coords: Coordinates, end_coords: Coordinates):
         self.start_coords = start_coords
         self.end_coords = end_coords
-        self.station_coords = station_coords
+        self.station_coords: list[Coordinates] = []
+        self.total_cost: float = 0.0
+        
+    def add_station(self, coords: Coordinates):
+        self.station_coords.append(coords)
 
     def get_path(self):
         coords = [self.start_coords.get_coords()]
+        for station in self.station_coords:
+            coords.append(station.get_coords())
         coords.append(self.end_coords.get_coords())
-        coords.append(self.station_coords.get_coords()) if self.station_coords else None
         
         return coords
 
