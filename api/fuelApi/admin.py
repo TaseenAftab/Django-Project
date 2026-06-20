@@ -3,7 +3,7 @@ from .models import FuelPrice, StateCoords
 
 @admin.register(FuelPrice)
 class FuelPriceAdmin(admin.ModelAdmin):
-    list_display = ('opis_truckstop_id', 'truckstop_name', 'address', 'city', 'state', 'rack_id', 'retail_price', 'lat', 'long')
+    list_display = ('id','opis_truckstop_id', 'truckstop_name', 'address', 'city', 'state', 'rack_id', 'retail_price', 'lat', 'long')
     list_filter = ('state', 'city')
     search_fields = ('truckstop_name', 'address', 'city', 'state')
     ordering = ('state', 'city')

@@ -3,6 +3,7 @@ from typing import Literal
 import os
 import dotenv
 import math
+import shapely.geometry
 
 dotenv.load_dotenv()
 
@@ -37,6 +38,14 @@ def base_request(req_type: RequestType, profile: str = "driving-car", *args , **
         return response.json()
         
     except requests.exceptions.RequestException as e:
+        if e.response is not None:
+            try:
+                error_data = e.response.json()
+            except ValueError:
+                error_data = {}
+            if error_data.get('error', {}).get('code') == 2010:
+                raise ValueError("The road is finished")
+                
         print(f"API Request failed for {req_type}: {e}")
         if e.response is not None:
             print(f"Response: {e.response.text}")
@@ -53,3 +62,15 @@ def haversine_distance(coord1: list[float], coord2: list[float]) -> float:
     a = math.sin(dlat / 2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2)**2
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
     return R * c
+
+
+def get_coords_by_distance(distance_covered, total_distance, route_line):
+
+    target_point = route_line.interpolate(
+        distance_covered/total_distance,
+        normalized=True
+    )
+
+    longitude = target_point.x
+    latitude = target_point.y
+    return [longitude, latitude]
