@@ -111,10 +111,19 @@ def find_path(start_coords: Coordinates, end_coords: Coordinates) -> Path:
         else:
             station = nodes[v]
             stat_lon, stat_lat = station['coordinates']
-            path.add_station(Coordinates(stat_lat, stat_lon))
             
+            from api.fuelApi.models import FuelPrice
             db_station = FuelPrice.objects.get(id=station.get('database_id'))
             retail_price = float(db_station.retail_price)
+            
+            path.add_station(Coordinates(stat_lat, stat_lon), info={
+                "name": db_station.truckstop_name,
+                "address": db_station.address,
+                "city": db_station.city,
+                "state": db_station.state,
+                "retail_price": retail_price,
+                "coordinates": [float(stat_lon), float(stat_lat)]
+            })
             
             refill_amount = 50.0 - current_fuel
             cost_for_stop = refill_amount * retail_price

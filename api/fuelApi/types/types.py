@@ -21,10 +21,13 @@ class Path:
         self.start_coords = start_coords
         self.end_coords = end_coords
         self.station_coords: list[Coordinates] = []
+        self.stations_info: list[dict] = []
         self.total_cost: float = 0.0
         
-    def add_station(self, coords: Coordinates):
+    def add_station(self, coords: Coordinates, info: dict = None):
         self.station_coords.append(coords)
+        if info is not None:
+            self.stations_info.append(info)
 
     def get_path(self):
         coords = [self.start_coords.get_coords()]

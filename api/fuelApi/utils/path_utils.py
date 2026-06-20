@@ -42,15 +42,16 @@ def base_request(req_type: RequestType, profile: str = "driving-car", *args , **
         if e.response is not None:
             try:
                 error_data = e.response.json()
-            except ValueError:
-                error_data = {}
-            if error_data.get('error', {}).get('code') == 2010:
-                raise ValueError("The road is finished")
+                if 'error' in error_data and 'message' in error_data['error']:
+                    err_msg = error_data['error']['message']
+                    raise ValueError(err_msg)
                 
-        print(f"API Request failed for {req_type}: {e}")
-        if e.response is not None:
-            print(f"Response: {e.response.text}")
-        return None
+                if error_data.get('error', {}).get('code') == 2010:
+                    raise ValueError("The road is finished or point is too far from a valid road.")
+            except (ValueError, TypeError):
+                pass
+        
+        raise ValueError("Failed to connect to the routing service.")
 
 def haversine_distance(coord1: list[float], coord2: list[float]) -> float:
     R = 3958.8 # Earth radius in miles
