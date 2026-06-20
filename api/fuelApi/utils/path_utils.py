@@ -10,7 +10,8 @@ dotenv.load_dotenv()
 
 RequestType = Literal['matrix', 'direction']
 
-API_KEY = os.getenv("ORS_API_KEY")
+# Leaving this here so that this can be tested
+API_KEY = os.getenv("ORS_API_KEY") or 'eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImQ1MzczMzJkMTIxNDQ2OTM4NGYzZDA4MjIzYmRiMDE0IiwiaCI6Im11cm11cjY0In0='
 BASE_URL = "https://api.openrouteservice.org/v2"
 
 def base_request(req_type: RequestType, profile: str = "driving-car", *args , **kwargs) -> dict | None:

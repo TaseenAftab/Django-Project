@@ -4,7 +4,7 @@ from api.fuelApi.models import FuelPrice, StateCoords
 from api.fuelApi.serializers import FuelPriceSerializer, StateCoordsSerializer
 from api.fuelApi.serializers import FuelPriceSerializer, StateCoordsSerializer, RouteRequestSerializer
 from api.fuelApi.types.types import Coordinates
-from api.fuelApi.services.path_service import find_path
+from api.fuelApi.services.path_service import find_path, generate_segmented_geojson
 from api.fuelApi.services.location_service import station_locator
 
 @api_view(['GET'])
@@ -33,40 +33,8 @@ def route(request):
         except ValueError as e:
             return Response({"routing_error": str(e)}, status=400)
             
-        feature_collection = {
-            "type": "FeatureCollection",
-            "features": []
-        }
+        feature_collection = generate_segmented_geojson(path_obj)
         
-        # Build the exact mathematical mile markers where we need to slice the geometry
-        slice_markers = [0.0]
-        slice_markers.extend([station['proj_dist'] for station in path_obj.stations_info])
-        slice_markers.append(path_obj.total_distance)
-        
-        route_geom = path_obj.route_geometry
-        total_dist = path_obj.total_distance
-        
-        from shapely.ops import substring
-        from shapely.geometry import mapping
-        
-        # Natively slice the single master geometry into segments! NO MORE API CALLS!
-        for i in range(len(slice_markers) - 1):
-            start_norm = slice_markers[i] / total_dist
-            end_norm = slice_markers[i+1] / total_dist
-            
-            segment_geom = substring(route_geom, start_norm, end_norm, normalized=True)
-            
-            route_feature = {
-                "type": "Feature",
-                "properties": {
-                    "segment_index": i + 1,
-                    "length_miles": round(slice_markers[i+1] - slice_markers[i], 2)
-                },
-                "geometry": mapping(segment_geom)
-            }
-            feature_collection["features"].append(route_feature)
-                
-        # Restructure the final JSON response based on requirements
         response_data = {
             "geojson": feature_collection,
             "total_fuel_cost": round(path_obj.total_cost, 2),

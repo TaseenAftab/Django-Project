@@ -1,6 +1,7 @@
 from api.fuelApi.types.types import Coordinates, Path, Car
 from api.fuelApi.utils.path_utils import base_request, get_coords_by_distance, get_search_corridor
-from shapely.geometry import shape, Point
+from shapely.geometry import shape, Point, mapping
+from shapely.ops import substring
 import math
 import heapq
 from api.fuelApi.models import FuelPrice
@@ -33,7 +34,7 @@ def find_path(start_coords: Coordinates, end_coords: Coordinates) -> Path:
         
     valid_stations.sort(key=lambda x: x['proj_dist'])
     
-    # Bulk fetch all valid station retail prices to calculate costs dynamically
+    # Bulk fetch retail prices
     db_ids = [s['database_id'] for s in valid_stations]
     prices_dict = {fp.id: float(fp.retail_price) for fp in FuelPrice.objects.filter(id__in=db_ids)}
     
@@ -68,14 +69,13 @@ def find_path(start_coords: Coordinates, end_coords: Coordinates) -> Path:
             if dist_uv <= 0:
                 continue
                 
-            # Cost is exactly the dollar amount spent to refill the fuel used on this leg
-            # Fuel used = dist_uv / 10 mpg. We buy that gas at the retail price of station v.
             if v == n - 1:
-                edge_cost = 0.0 # We don't buy gas at the final destination
+                edge_cost = 0.0
             else:
+                # Calculate dollar amount for fuel
                 edge_cost = (dist_uv / float(car.consumption)) * nodes[v]['retail_price']
             
-            # If we dip into the safe reserve, we add a massive penalty
+            # Penalty for reserve usage
             if dist_uv > safe_max_range:
                 edge_cost += 1000000 + (dist_uv - safe_max_range) ** 2
                 
@@ -104,7 +104,7 @@ def find_path(start_coords: Coordinates, end_coords: Coordinates) -> Path:
     
     print(f"Total distance: {distance:.2f} miles")
     
-    # Store the massive original geometry so views.py can slice it without API calls
+    # Store original geometry
     path.route_geometry = route_geometry
     path.total_distance = distance
     
@@ -154,3 +154,36 @@ def find_path(start_coords: Coordinates, end_coords: Coordinates) -> Path:
     print(f"Total fuel cost: ${path.total_cost:.2f}")
 
     return path
+
+def generate_segmented_geojson(path_obj: Path) -> dict:
+    feature_collection = {
+        "type": "FeatureCollection",
+        "features": []
+    }
+    
+    # Build mile slice markers
+    slice_markers = [0.0]
+    slice_markers.extend([station['proj_dist'] for station in path_obj.stations_info])
+    slice_markers.append(path_obj.total_distance)
+    
+    route_geom = path_obj.route_geometry
+    total_dist = path_obj.total_distance
+    
+    # Slice geometry into segments
+    for i in range(len(slice_markers) - 1):
+        start_norm = slice_markers[i] / total_dist
+        end_norm = slice_markers[i+1] / total_dist
+        
+        segment_geom = substring(route_geom, start_norm, end_norm, normalized=True)
+        
+        route_feature = {
+            "type": "Feature",
+            "properties": {
+                "segment_index": i + 1,
+                "length_miles": round(slice_markers[i+1] - slice_markers[i], 2)
+            },
+            "geometry": mapping(segment_geom)
+        }
+        feature_collection["features"].append(route_feature)
+        
+    return feature_collection

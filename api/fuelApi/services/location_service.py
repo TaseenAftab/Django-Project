@@ -1,5 +1,7 @@
 from scipy.spatial import cKDTree
 from api.fuelApi.types.types import Coordinates
+from shapely.geometry import Point
+from api.fuelApi.models import FuelPrice
 
 class NearestStationService:
     def __init__(self):
@@ -9,7 +11,7 @@ class NearestStationService:
         self.is_ready = False
 
     def load_from_database(self):
-        from api.fuelApi.models import FuelPrice
+
 
         stations = FuelPrice.objects.values_list('id', 'lat', 'long')
         self.station_ids = []
@@ -41,7 +43,7 @@ class NearestStationService:
 
             if coord_tuple not in seen_coordinates:
                 if search_polygon:
-                    from shapely.geometry import Point
+
                     if not Point(coord_tuple).within(search_polygon):
                         continue
 
@@ -62,7 +64,7 @@ class NearestStationService:
         if not self.is_ready:
             raise RuntimeError("Spatial index has not been initialized.")
             
-        from shapely.geometry import Point
+
         minx, miny, maxx, maxy = polygon.bounds
         
         valid_stations = []
