@@ -3,7 +3,8 @@ from typing import Literal
 import os
 import dotenv
 import math
-import shapely.geometry
+from shapely.geometry import LineString
+from api.fuelApi.types.types import Coordinates
 
 dotenv.load_dotenv()
 
@@ -73,4 +74,29 @@ def get_coords_by_distance(distance_covered, total_distance, route_line):
 
     longitude = target_point.x
     latitude = target_point.y
-    return [longitude, latitude]
+    return Coordinates(latitude, longitude)
+
+
+def get_search_corridor(distance_covered, total_distance, route_line, lookahead_miles):
+    points = []
+    
+    step = 5.0
+    d = 0.0
+    while d <= lookahead_miles:
+        eval_dist = distance_covered + d
+        if eval_dist > total_distance:
+            eval_dist = total_distance
+            
+        target_point = route_line.interpolate(
+            eval_dist / total_distance, 
+            normalized=True
+        )
+        
+        points.append((target_point.x, target_point.y))
+        
+        if eval_dist == total_distance:
+            break
+        d += step
+        
+    upcoming_segment = LineString(points)
+    return upcoming_segment.buffer(0.075)
